@@ -1,0 +1,870 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: alldo
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: alldo-assistente-api
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: alldo-assistente-api
+
+plugins:
+  - serverless-offline
+  - serverless-prune-plugin
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    DATABASE_URL: ${self:custom.${self:provider.stage}.DATABASE_URL}
+    JWT_SECRET: ${self:custom.${self:provider.stage}.JWT_SECRET}
+    JWT_EXPIRES_IN: "365d"
+    ROLE_USER_UID: ${self:custom.${self:provider.stage}.ROLE_USER_UID}
+    SEND_EMAIL_QUEUE_URL: !GetAtt SendEmailQueue.QueueUrl
+    BUCKET_NAME: ${self:custom.${self:provider.stage}.BUCKET_NAME}
+    ALLDO_PAYMENTS_API_URL: ${self:custom.${self:provider.stage}.ALLDO_PAYMENTS_API_URL}
+    ALLDO_PAYMENTS_ACCESS_TOKEN: ${self:custom.${self:provider.stage}.ALLDO_PAYMENTS_ACCESS_TOKEN}
+    ALLDO_MAPS_ACCESS_TOKEN: ${self:custom.${self:provider.stage}.ALLDO_MAPS_ACCESS_TOKEN}
+    ALLDO_N8N_ACCESS_TOKEN: ${self:custom.${self:provider.stage}.ALLDO_N8N_ACCESS_TOKEN}
+    ALLDO_N8N_API_URL: ${self:custom.${self:provider.stage}.ALLDO_N8N_API_URL}
+    ALLDO_N8N_USER: ${self:custom.${self:provider.stage}.ALLDO_N8N_USER}
+    ALLDO_N8N_PASSWORD: ${self:custom.${self:provider.stage}.ALLDO_N8N_PASSWORD}
+    FIREBASE_PROJECT_ID: ${self:custom.${self:provider.stage}.FIREBASE_PROJECT_ID}
+    FIREBASE_CLIENT_EMAIL: ${self:custom.${self:provider.stage}.FIREBASE_CLIENT_EMAIL}
+    SUBSCRIPTION_FREE_TRIAL_UID: ${self:custom.${self:provider.stage}.SUBSCRIPTION_FREE_TRIAL_UID}
+    SUBSCRIPTION_DEFAULT_UID: ${self:custom.${self:provider.stage}.SUBSCRIPTION_DEFAULT_UID}
+    SUBSCRIPTION_CUSTOM_UID: ${self:custom.${self:provider.stage}.SUBSCRIPTION_CUSTOM_UID}
+    SUBSCRIPTION_SERVICE_UID: ${self:custom.${self:provider.stage}.SUBSCRIPTION_SERVICE_UID}
+    ROLE_COLLABORATOR_UID: ${self:custom.${self:provider.stage}.ROLE_COLLABORATOR_UID}
+    ALLDO_ASSISTENTE_BASE_URL: ${self:custom.${self:provider.stage}.ALLDO_ASSISTENTE_BASE_URL}
+    ALLDO_ASSISTENTE_APIKEY: ${self:custom.${self:provider.stage}.ALLDO_ASSISTENTE_APIKEY}
+    DISCORD_ALLDO_PENDING_WEBHOOK_URL: ${self:custom.${self:provider.stage}.DISCORD_ALLDO_PENDING_WEBHOOK_URL}
+    WHATSAPP_URL: ${self:custom.${self:provider.stage}.WHATSAPP_URL}
+    WHATSAPP_TOKEN: ${self:custom.${self:provider.stage}.WHATSAPP_TOKEN}
+    WHATSAPP_APP_ID: ${self:custom.${self:provider.stage}.WHATSAPP_APP_ID}
+    WHATSAPP_APP_SECRET: ${self:custom.${self:provider.stage}.WHATSAPP_APP_SECRET}
+  vpc:
+    securityGroupIds:
+      - sg-0244f6e525b750262
+    subnetIds:
+      - subnet-0c76e439213802d98
+      - subnet-07acb28908630dc76
+
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "lambda:InvokeFunction"
+          Resource:
+            - "arn:aws:lambda:us-east-1:522814713738:function:*"
+        - Effect: Allow
+          Action:
+            - s3:*
+          Resource: "arn:aws:s3:::*"
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - "arn:aws:sqs:us-east-1:*:*"
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+            - ses:SendTemplatedEmail
+          Resource: "*"
+
+  httpApi:
+    cors:
+      allowedOrigins:
+        - "*"
+      allowedHeaders:
+        - Content-Type
+        - X-Amz-Date
+        - Authorization
+        - X-Api-Key
+        - X-Amz-Security-Token
+        - X-Amz-User-Agent
+      allowedMethods:
+        - OPTIONS
+        - GET
+        - POST
+        - PUT
+        - DELETE
+      allowCredentials: false
+
+package:
+  individually: true
+  patterns:
+    - "!node_modules/.prisma/client/libquery_engine*"
+    - "node_modules/.prisma/client/libquery_engine-rhel-openssl-3.0.x.so.node"
+    - "node_modules/@prisma/engines/libquery_engine-rhel-openssl-3.0.x.so.node"
+    - "features/emails/templates/**"
+  exclude:
+    - node_modules/**
+    - .gitignore
+    - .git/**
+    - README.md
+    - tests/**
+
+functions:
+  hello:
+    handler: handler.hello
+    timeout: 30
+    events:
+      - httpApi:
+          path: /
+          method: get
+
+  auth-login:
+    handler: ./features/auth/login.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /login
+          method: post
+
+  auth-refresh:
+    handler: ./features/auth/refresh.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /auth/refresh
+          method: post
+
+  auth-token:
+    handler: ./features/auth/token.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /auth/token
+          method: get
+
+  auth-activation-email:
+    handler: ./features/auth/activationEmail.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /auth/confirmation/{token}
+          method: post
+
+  auth-update-activation-code:
+    handler: ./features/auth/updateActivationCode.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /auth/confirmation/{token}
+          method: put
+
+  auth-forgot-password:
+    handler: ./features/auth/forgotPassword.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /auth/forgot-password
+          method: post
+
+  auth-check-recovery-password:
+    handler: ./features/auth/checkRecoveryPassword.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /auth/recovery-password/{token}
+          method: get
+
+  auth-recovery-password:
+    handler: ./features/auth/recoveryPassword.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /auth/recovery-password/{token}
+          method: post
+
+  location-cities-get:
+    handler: ./features/locations/getCities.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /locations/cities/{uid}
+          method: get
+
+  location-states-get:
+    handler: ./features/locations/getStates.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /locations/states
+          method: get
+
+  location-geocoding:
+    handler: ./features/locations/geocoding.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /locations/geocoding
+          method: get
+
+  location-autosuggest:
+    handler: ./features/locations/autosuggest.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /locations/autosuggest
+          method: get
+
+  location-reverse-geocoding:
+    handler: ./features/locations/reverseGeocoding.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /locations/reverse-geocoding
+          method: get
+
+  location-routes:
+    handler: ./features/locations/routes.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /routes
+          method: get
+
+  send-email:
+    handler: ./features/emails/sendEmail.handler
+    timeout: 30
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - SendEmailQueue
+              - Arn
+
+  credit-card-tokenize:
+    handler: ./features/credit-cards/tokenize.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /credit-card/tokenize
+          method: POST
+
+  credit-card-get:
+    handler: ./features/credit-cards/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /credit-card
+          method: get
+
+  credit-card-delete:
+    handler: ./features/credit-cards/delete.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /credit-card/{uid}
+          method: delete
+
+  credit-card-set-default:
+    handler: ./features/credit-cards/setDefault.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /credit-card/{uid}/default
+          method: put
+
+  users-create:
+    handler: ./features/users/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /users
+          method: post
+
+  users-get:
+    handler: ./features/users/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /users
+          method: get
+
+  users-delete:
+    handler: ./features/users/delete.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /users/{uid}
+          method: delete
+
+  users-update:
+    handler: ./features/users/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /users/{uid}
+          method: put
+
+  users-get-subscriptions:
+    handler: ./features/users/getSubscription.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /users/subscriptions
+          method: get
+
+  users-verify-subscriptions:
+    handler: ./features/users/schedules/verifySubscriptions.handler
+    timeout: 30
+    events:
+      - schedule:
+          rate: rate(12 hours)
+          enabled: true
+
+  steps-create:
+    handler: ./features/steps/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /steps
+          method: post
+
+  steps-get:
+    handler: ./features/steps/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /steps
+          method: get
+
+  steps-update:
+    handler: ./features/steps/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /steps/{uid}
+          method: put
+
+  steps-delete:
+    handler: ./features/steps/delete.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /steps/{uid}
+          method: delete
+
+  leads-get:
+    handler: ./features/leads/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads
+          method: get
+
+  leads-get-start-conversation:
+    handler: ./features/leads/getStartConversation.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads/start-conversation
+          method: get
+
+  leads-create:
+    handler: ./features/leads/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads
+          method: post
+
+  leads-upload-file:
+    handler: ./features/leads/uploadLeadsFile.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads/upload
+          method: post
+
+  leads-change-step:
+    handler: ./features/leads/changeStep.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads/{uid}/step
+          method: put
+
+  leads-change-owner:
+    handler: ./features/leads/changeOwner.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads/{uid}/owner
+          method: put
+
+  leads-delete:
+    handler: ./features/leads/delete.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads/{uid}
+          method: delete
+
+  leads-update:
+    handler: ./features/leads/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads/{uid}
+          method: put
+
+  archive-toggle:
+    handler: ./features/archive/toggle.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /{entity}/{uid}/archive
+          method: put
+
+  leads-update-summary:
+    handler: ./features/leads/updateSummary.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /leads/summary
+          method: put
+
+  clients-change-step:
+    handler: ./features/clients/changeStep.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /clients/{uid}/step
+          method: put
+
+  clients-get:
+    handler: ./features/clients/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /clients
+          method: get
+
+  clients-create:
+    handler: ./features/clients/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /clients
+          method: post
+
+  clients-update:
+    handler: ./features/clients/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /clients/{uid}
+          method: put
+
+  clients-change-owner:
+    handler: ./features/clients/changeOwner.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /clients/{uid}/owner
+          method: put
+
+  collaborators-create:
+    handler: ./features/collaborators/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /collaborators
+          method: post
+
+  collaborators-get:
+    handler: ./features/collaborators/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /collaborators
+          method: get
+
+  collaborators-update:
+    handler: ./features/collaborators/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /collaborators/{uid}
+          method: put
+
+  configs-get:
+    handler: ./features/configs/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /configs
+          method: get
+
+  configs-create:
+    handler: ./features/configs/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /configs
+          method: post
+
+  configs-update:
+    handler: ./features/configs/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /configs/{uid}
+          method: put
+
+  configs-delete:
+    handler: ./features/configs/delete.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /configs/{uid}
+          method: delete
+
+  whatsapp-api-send-text:
+    handler: ./features/whatsapp-api/sendText.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /whatsapp-api/message/send-text
+          method: post
+
+  whatsapp-api-send-audio:
+    handler: ./features/whatsapp-api/sendWhatsappAudio.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /whatsapp-api/message/send-audio
+          method: post
+
+  whatsapp-api-send-media:
+    handler: ./features/whatsapp-api/sendMedia.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /whatsapp-api/message/send-media
+          method: post
+
+  facebook-auth:
+    handler: ./features/whatsapp-api/facebookAuth.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /facebook-auth
+          method: post
+
+  meta-logout:
+    handler: ./features/whatsapp-api/metaLogout.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /meta-logout
+          method: post
+
+  whatsapp-api-download-save-media:
+    handler: ./features/whatsapp-api/downloadAndSaveMedia.handler
+    timeout: 60
+    events:
+      - httpApi:
+          path: /whatsapp-api/media/download-save
+          method: post
+
+  alldo-n8n-proxy:
+    handler: ./features/alldo-n8n/proxy.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /alldo-n8n
+          method: post
+
+  admin-generate-user-key:
+    handler: ./features/admin/generateUserKey.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /admin/generate-user-key
+          method: post
+
+  admin-dashboard-get:
+    handler: ./features/admin/dashboard.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /admin/dashboard
+          method: get
+
+  attendant-histories-get:
+    handler: ./features/attendant-histories/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /attendant-histories
+          method: get
+
+  attendant-histories-transfer:
+    handler: ./features/attendant-histories/transfer.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /attendant-histories/transfer
+          method: post
+
+  scheduled-messages-get:
+    handler: ./features/scheduled-messages/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /scheduled-messages
+          method: get
+
+  scheduled-message-recepients-get:
+    handler: ./features/scheduled-messages/getRecipients.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /recipients
+          method: get
+
+  scheduled-messages-create:
+    handler: ./features/scheduled-messages/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /scheduled-messages
+          method: post
+
+  scheduled-messages-update:
+    handler: ./features/scheduled-messages/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /scheduled-messages/{uid}
+          method: put
+
+  send-messages-schedule:
+    handler: ./features/scheduled-messages/schedules/sendMessages.handler
+    timeout: 30
+    events:
+      - schedule:
+          rate: rate(5 minutes)
+          enabled: true
+
+  message-templates-create:
+    handler: ./features/message-templates/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /message-templates
+          method: post
+
+  message-templates-get:
+    handler: ./features/message-templates/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /message-templates
+          method: get
+
+  message-templates-delete:
+    handler: ./features/message-templates/delete.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /message-templates/{uid}
+          method: delete
+
+  message-templates-update:
+    handler: ./features/message-templates/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /message-templates/{uid}
+          method: put
+
+  reports-dashboard:
+    handler: ./features/reports/dashboard.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /reports/dashboard
+          method: get
+
+  calendars-get:
+    handler: ./features/calendars/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /calendars
+          method: get
+
+  subscription-create:
+    handler: ./features/subscriptions/create.handler
+    events:
+      - httpApi:
+          path: /subscriptions
+          method: POST
+
+  subscription-delete:
+    handler: ./features/subscriptions/delete.handler
+    events:
+      - httpApi:
+          path: /subscriptions/{uid}
+          method: DELETE
+
+  tags-create:
+    handler: ./features/tags/create.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /tags
+          method: post
+
+  tags-get:
+    handler: ./features/tags/get.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /tags
+          method: get
+
+  tags-update:
+    handler: ./features/tags/update.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /tags/{uid}
+          method: put
+
+  tags-delete:
+    handler: ./features/tags/delete.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /tags/{uid}
+          method: delete
+
+  tags-add-to-lead:
+    handler: ./features/tags/addToLead.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /tags/lead/{uid}
+          method: post
+
+  tags-add-to-client:
+    handler: ./features/tags/addToClient.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /tags/client/{uid}
+          method: post
+
+  # subscription-update-credit-card:
+  #   handler: ./features/subscriptions/updateCreditCard.handler
+  #   events:
+  #     - httpApi:
+  #         path: /subscriptions/{uid}/credit-card
+  #         method: PUT
+
+  # files-refresh-images:
+  #   handler: ./features/files/refreshImages.handler
+  #   timeout: 30
+  #   events:
+  #     - schedule:
+  #         rate: rate(220 minutes)
+  #         enabled: true
+
+  # notifications-create:
+  #   handler: ./features/notifications/create.handler
+  #   timeout: 30
+  #   events:
+  #     - httpApi:
+  #         path: /notifications
+  #         method: post
+
+  # notifications-firebase-token:
+  #   handler: ./features/notifications/firebaseToken.handler
+  #   timeout: 30
+  #   events:
+  #     - httpApi:
+  #         path: /notifications/firebase-token
+  #         method: post
+
+resources:
+  Resources:
+    SendEmailQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: send-email-queue-alldo-assistente-${self:provider.stage}.fifo
+        FifoQueue: true
+        ContentBasedDeduplication: true
+        VisibilityTimeout: 60
+
+custom:
+  scriptHooks:
+    before:package:createDeploymentArtifacts: npm run prisma:generate
+  esbuild:
+    bundle: true
+    minify: true
+  prune:
+    automatic: true
+    number: 5
+  dev:
+    DATABASE_URL: "mysql://admin:qaSwo5-ciccat-xujdec@sobboro-dev.cf2oy4ia266j.us-east-1.rds.amazonaws.com:3306/assistente"
+    JWT_SECRET: "alldo-assistente-api-dev-2025"
+    ROLE_USER_UID: "1a40a243-ea17-4df8-9765-cb1af641f574"
+    BUCKET_NAME: "alldo-assistente-dev"
+    ALLDO_PAYMENTS_API_URL: "https://bzq8uhi0v5.execute-api.us-east-1.amazonaws.com"
+    ALLDO_PAYMENTS_ACCESS_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJiYjk1ZDRkNS0zNmJiLTRmNWMtODliZi03Mjk3Yjc4OWIwMDYiLCJhc2Fhc0FwaUtleSI6ImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUpoY0dsTFpYa2lPaUlrWVdGamRGOU5lbXQzVDBSQk1rMVhXVEpQUjAwelRWZFNiRTFFVlRKT1YwMHpUWHBLYkU1NldtMU9SMXBvV2tkWk5rOXRVWHBhVjFrelRVZE5ORXhVWnpSYVZHdDBUa1JKZVU1RE1EVk9WR00wVEZkT2EwMVhXVEpOZWtKcFRucG5NVTFFYnpaS1IwWm9XVEpvWmsxWFRtdE9SR3N6VG1wTmRFNVVZM3BhUXpBd1RtcGpkMHhVWjNoWmJWRjBXWHBqTWxsNmFHbE9iVmt6V1hwTk5TSXNJbWxoZENJNk1UY3pOelkwTURnMk9Dd2laWGh3SWpveE56WTVNVGMyT0RZNGZRLkpNSFZwNktHSEJLUVJkTW42RzFWTUZMcXhDQU1LQ1dFQWZ2U2M0YWlDR1UiLCJpYXQiOjE3NDQ2MzYwNjgsImV4cCI6MTc3NjE3MjA2OH0.4fP3ytl9ffSWWMFbEJUbPN6aW_gOFq0mtm2J-YfivEI"
+    ALLDO_MAPS_API_URL: ""
+    ALLDO_MAPS_ACCESS_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1MTY2NDUyOS1jM2Q0LTQxMjktOWEwZi0zNTM5MGZhMzc0ZWYiLCJpYXQiOjE3Mzc3MTg2NzQsImV4cCI6MTc2OTI1NDY3NH0.jCm7FIT4HSTtFuHkwqwKecb6vxKTiFGBLp5cEmruq8E"
+    ALLDO_N8N_ACCESS_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTk0YjZlZi05NjcyLTQxMjMtYTU5Zi1hMTA2NmM0YTNhMzQiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzQ4NTMwMTIwfQ.aWHOFNoWjZxGNWp8XWSdw6CisQitUWljQH7BWQwDcrg"
+    ALLDO_N8N_API_URL: "https://n8n.alldohost.com.br"
+    ALLDO_N8N_USER: "ti@alldohost.com.br"
+    ALLDO_N8N_PASSWORD: "@llD0h0073N*N"
+    ALLDO_ASSISTENTE_BASE_URL: "https://evolution.approveita.com.br"
+    ALLDO_ASSISTENTE_APIKEY: "al98723479kasjhddhiuewHDGYEI029880"
+    SUBSCRIPTION_FREE_TRIAL_UID: "afe8df80-21ca-43ae-9f5b-07fe735a6c47"
+    SUBSCRIPTION_DEFAULT_UID: "790421fd-9605-4f3a-be48-5460960ddfa9"
+    SUBSCRIPTION_CUSTOM_UID: "312fe9f5-0866-4b6d-be9c-d2e050f48933"
+    SUBSCRIPTION_SERVICE_UID: "fe8098df-82a4-4a6e-a4a0-6b092e1a530b"
+    ROLE_COLLABORATOR_UID: "ce30ee3e-d22d-4f4f-b517-d70d2d0d5baa"
+    DISCORD_ALLDO_PENDING_WEBHOOK_URL: "https://discord.com/api/webhooks/1379429666452148366/ZDfpSflGKNoOK3RUieJuaozSk5jU_7nbVIEC4bmp2FcwP5L20T2mLO1tFTG-9mo6X4Hl"
+    WHATSAPP_URL: "https://graph.facebook.com/v23.0"
+    WHATSAPP_TOKEN: "EAAKqrESGlZAIBPhUEVKz6Grh3uaVJyWuAVsZBJcNSBle2MhrgK3wQBz46PfzLQO86ENC5gYicpOV4caE5UD7l1GF0GcCt9EZCKCTZBamEAZCBgPG4BblBWSTSlzoXCSSZCPZCcOPO7BnNEsuL0EzRIxuAc04PWzWTw2JuRkkOciqi1ANMm739zlRx4qF0bgH8bqwAZDZD"
+    WHATSAPP_APP_ID: "750606814188946"
+    WHATSAPP_APP_SECRET: "18c48ce397a90702c34ecf0492e027cc"
+  prod:
+    DATABASE_URL: "mysql://alldoadmin:pibrIpwezjez4jozte@alldo-db-instance-1.cf2oy4ia266j.us-east-1.rds.amazonaws.com:3306/alldo-assistente"
+    JWT_SECRET: "alldo-assistente-prod-2025"
+    ROLE_USER_UID: "1a40a243-ea17-4df8-9765-cb1af641f574"
+    BUCKET_NAME: "alldo-assistente-prod"
+    ALLDO_PAYMENTS_API_URL: "https://g8shvg8lih.execute-api.us-east-1.amazonaws.com"
+    ALLDO_PAYMENTS_ACCESS_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJiYjk1ZDRkNS0zNmJiLTRmNWMtODliZi03Mjk3Yjc4OWIwMDYiLCJpYXQiOjE3NDcyMzIxMDksImV4cCI6MTc3ODc2ODEwOX0.liygvG3FaisMCnaOlowieB7zwCCO6HmXazkp6Ye74oM"
+    ALLDO_MAPS_API_URL: ""
+    ALLDO_MAPS_ACCESS_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1MTY2NDUyOS1jM2Q0LTQxMjktOWEwZi0zNTM5MGZhMzc0ZWYiLCJpYXQiOjE3NDQ2MzQ0NTgsImV4cCI6MTc3NjE3MDQ1OH0.0wzDA64ecUvY1klRwq0nZ6PVb0wBL4-9mgiQIZC_LjU"
+    ALLDO_N8N_ACCESS_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTk0YjZlZi05NjcyLTQxMjMtYTU5Zi1hMTA2NmM0YTNhMzQiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzQ4NTMwMTIwfQ.aWHOFNoWjZxGNWp8XWSdw6CisQitUWljQH7BWQwDcrg"
+    ALLDO_N8N_API_URL: "https://n8n.alldohost.com.br"
+    ALLDO_N8N_USER: "ti@alldohost.com.br"
+    ALLDO_N8N_PASSWORD: "@llD0h0073N*N"
+    ALLDO_ASSISTENTE_BASE_URL: "https://evolution.approveita.com.br"
+    ALLDO_ASSISTENTE_APIKEY: "al98723479kasjhddhiuewHDGYEI029880"
+    SUBSCRIPTION_FREE_TRIAL_UID: "afe8df80-21ca-43ae-9f5b-07fe735a6c47"
+    SUBSCRIPTION_DEFAULT_UID: "790421fd-9605-4f3a-be48-5460960ddfa9"
+    SUBSCRIPTION_CUSTOM_UID: "312fe9f5-0866-4b6d-be9c-d2e050f48933"
+    SUBSCRIPTION_SERVICE_UID: "fe8098df-82a4-4a6e-a4a0-6b092e1a530b"
+    ROLE_COLLABORATOR_UID: "9fd56251-dcd9-4b5e-a018-81471eb1a035"
+    DISCORD_ALLDO_PENDING_WEBHOOK_URL: "https://discord.com/api/webhooks/1379429666452148366/ZDfpSflGKNoOK3RUieJuaozSk5jU_7nbVIEC4bmp2FcwP5L20T2mLO1tFTG-9mo6X4Hl"
+    WHATSAPP_URL: "https://graph.facebook.com/v23.0"
+    WHATSAPP_TOKEN: "EAAKqrESGlZAIBPhUEVKz6Grh3uaVJyWuAVsZBJcNSBle2MhrgK3wQBz46PfzLQO86ENC5gYicpOV4caE5UD7l1GF0GcCt9EZCKCTZBamEAZCBgPG4BblBWSTSlzoXCSSZCPZCcOPO7BnNEsuL0EzRIxuAc04PWzWTw2JuRkkOciqi1ANMm739zlRx4qF0bgH8bqwAZDZD"
+    WHATSAPP_APP_ID: "750606814188946"
+    WHATSAPP_APP_SECRET: "18c48ce397a90702c34ecf0492e027cc"
+  serverless-offline:
+    httpPort: 3333
