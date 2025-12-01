@@ -769,7 +769,7 @@ custom:
     automatic: true
     number: 5
   dev:
-    DATABASE_URL: "mysql://admin:qaSwo5-ciccat-xujdec@sobboro-dev.cf2oy4ia266j.us-east-1.rds.amazonaws.com:3306/assistente"
+    DATABASE_URL: "mysql://admin:qaSwo5-ciccat-xujdec@sobboro-dev.cf2oy4ia266j.us-east-1.rds.amazonaws.com:3306/linkime"
     JWT_SECRET: "alldo-assistente-api-dev-2025"
     ROLE_USER_UID: "1a40a243-ea17-4df8-9765-cb1af641f574"
     BUCKET_NAME: "alldo-assistente-dev"
@@ -794,7 +794,7 @@ custom:
     WHATSAPP_APP_ID: "750606814188946"
     WHATSAPP_APP_SECRET: "18c48ce397a90702c34ecf0492e027cc"
   prod:
-    DATABASE_URL: "mysql://alldoadmin:pibrIpwezjez4jozte@alldo-db-instance-1.cf2oy4ia266j.us-east-1.rds.amazonaws.com:3306/alldo-assistente"
+    DATABASE_URL: "mysql://alldoadmin:pibrIpwezjez4jozte@alldo-db-instance-1.cf2oy4ia266j.us-east-1.rds.amazonaws.com:3306/linkime"
     JWT_SECRET: "alldo-assistente-prod-2025"
     ROLE_USER_UID: "1a40a243-ea17-4df8-9765-cb1af641f574"
     BUCKET_NAME: "alldo-assistente-prod"
