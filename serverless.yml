@@ -320,38 +320,6 @@ functions:
           rate: rate(12 hours)
           enabled: true
 
-  steps-create:
-    handler: ./features/steps/create.handler
-    timeout: 30
-    events:
-      - httpApi:
-          path: /steps
-          method: post
-
-  steps-get:
-    handler: ./features/steps/get.handler
-    timeout: 30
-    events:
-      - httpApi:
-          path: /steps
-          method: get
-
-  steps-update:
-    handler: ./features/steps/update.handler
-    timeout: 30
-    events:
-      - httpApi:
-          path: /steps/{uid}
-          method: put
-
-  steps-delete:
-    handler: ./features/steps/delete.handler
-    timeout: 30
-    events:
-      - httpApi:
-          path: /steps/{uid}
-          method: delete
-
   leads-get:
     handler: ./features/leads/get.handler
     timeout: 30
@@ -599,22 +567,6 @@ functions:
       - httpApi:
           path: /admin/dashboard
           method: get
-
-  attendant-histories-get:
-    handler: ./features/attendant-histories/get.handler
-    timeout: 30
-    events:
-      - httpApi:
-          path: /attendant-histories
-          method: get
-
-  attendant-histories-transfer:
-    handler: ./features/attendant-histories/transfer.handler
-    timeout: 30
-    events:
-      - httpApi:
-          path: /attendant-histories/transfer
-          method: post
 
   scheduled-messages-get:
     handler: ./features/scheduled-messages/get.handler

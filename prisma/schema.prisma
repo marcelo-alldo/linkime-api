@@ -24,7 +24,7 @@ model User {
   recoveryCode   String?  @map("recovery_code") @db.VarChar(255)
   firstLogin     Boolean  @default(false) @map("first_login")
   confirmed      Boolean  @default(false)
-  type           Int      @default(2)
+  type           UserType @default(USER)
   profileUid     String   @unique @map("profile_uid")
   partnerUid     String?  @map("partner_uid")
   createdAt      DateTime @default(now()) @map("created_at")
@@ -39,30 +39,19 @@ model User {
   payment                  Payment[]
   userCreditCards          UserCreditCard[]
 
-  subscriptions              UserSubscription[]
-  leads                      Lead[]
-  clients                    Client[]
-  collaborators              Collaborator[]     @relation("CollaboratorUser")
-  parent                     Collaborator[]     @relation("CollaboratorParent")
-  steps                      Step[]
-  configs                    UserConfig[]
-  lead                       Lead[]             @relation("owner")
-  client                     Client[]           @relation("client_owner")
-  tempMessages               TempMessage[]
-  attendantHistory           AttendantHistory[] @relation("user_attendant")
-  attendantHistoryTransfered AttendantHistory[] @relation("user_transfered")
-  masterAttendant            AttendantHistory[] @relation("user_master")
-  scheduledMessages          ScheduledMessage[]
-  messageTemplates           MessageTemplate[]
-  tags                       Tag[]
+  subscriptions     UserSubscription[]
+  leads             Lead[]
+  participants      Participants[]
+  collaborators     Collaborator[]     @relation("CollaboratorUser")
+  parent            Collaborator[]     @relation("CollaboratorParent")
+  configs           UserConfig[]
+  tempMessages      TempMessage[]
+  scheduledMessages ScheduledMessage[]
+  messageTemplates  MessageTemplate[]
+  tags              Tag[]
 
   @@map("users")
 }
-
-// USER TYPES
-// 1 - ADMIN
-// 2 - USER
-// 3 - COLLABORATOR
 
 model Partner {
   uid       String   @id @default(uuid())
@@ -228,7 +217,6 @@ model Address {
 
   city    City         @relation(fields: [cityUid], references: [uid])
   profile DataProfile?
-  client  Client?
 
   @@map("addresses")
 }
@@ -275,12 +263,11 @@ model Country {
 }
 
 model File {
-  uid         String        @id @default(uuid())
-  key         String        @db.Text
-  publicUrl   String?       @map("public_url") @db.Text
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  clientFiles ClientFiles[]
+  uid       String   @id @default(uuid())
+  key       String   @db.Text
+  publicUrl String?  @map("public_url") @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("files")
 }
@@ -348,115 +335,82 @@ model UserSubscription {
 }
 
 model Lead {
-  uid            String    @id @default(uuid())
-  userUid        String    @map("user_uid")
-  position       Int
-  archived       Boolean   @default(false)
-  name           String    @db.VarChar(255)
-  email          String?   @db.VarChar(100)
-  summary        String?   @db.Text
-  ownerUid       String?   @map("owner_uid")
-  notes          String?   @db.Text
-  phone          String    @db.VarChar(16)
-  conversation   String?   @default("working") @db.VarChar(12)
-  ieRg           String?   @map("ie_rg") @db.VarChar(50)
-  cpf            String?   @map("cpf") @db.VarChar(14)
-  cnpj           String?   @map("cnpj") @db.VarChar(18)
-  fantasyName    String?   @map("fantasy_name") @db.VarChar(255)
-  stepUid        String?   @db.VarChar(255)
-  birthDate      DateTime? @map("birth_date")
-  iaConversation Boolean   @default(true) @map("ia_conversation")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  uid                String    @id @default(uuid())
+  userUid            String    @map("user_uid")
+  position           Int
+  archived           Boolean   @default(false)
+  name               String    @db.VarChar(255)
+  email              String?   @db.VarChar(100)
+  summary            String?   @db.Text
+  annualRevenue      Decimal?  @map("annual_revenue") @db.Decimal(15, 2)
+  eventsParticipated Int       @default(0) @map("events_participated")
+  private            Boolean   @default(false)
+  ownerUid           String?   @map("owner_uid")
+  notes              String?   @db.Text
+  phone              String    @db.VarChar(16)
+  ieRg               String?   @map("ie_rg") @db.VarChar(50)
+  cpf                String?   @map("cpf") @db.VarChar(14)
+  cnpj               String?   @map("cnpj") @db.VarChar(18)
+  fantasyName        String?   @map("fantasy_name") @db.VarChar(255)
+  birthDate          DateTime? @map("birth_date")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   user                       User                        @relation(fields: [userUid], references: [uid])
-  step                       Step?                       @relation(fields: [stepUid], references: [uid])
-  owner                      User?                       @relation(name: "owner", fields: [ownerUid], references: [uid])
   scheduledMessageRecipients ScheduledMessageRecipient[]
   leadTags                   LeadTag[]
+  stepUid                    String?
 
   @@map("leads")
 }
 
-model Client {
-  uid            String  @id @default(uuid())
-  userUid        String  @map("user_uid")
-  enable         Boolean @default(true)
-  archived       Boolean @default(false)
-  dataClientUid  String  @unique @map("data_client_uid")
-  addressUid     String? @unique @map("address_uid")
-  ownerUid       String? @map("owner_uid")
-  stepUid        String  @map("step_uid")
-  position       Int
-  iaConversation Boolean @default(true) @map("ia_conversation")
+model Event {
+  uid        String   @id @default(uuid())
+  name       String   @db.VarChar(255)
+  cover      String?  @db.Text
+  date       DateTime
+  addressUid String   @map("address_uid")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  address      Address       @relation(fields: [addressUid], references: [uid])
+  participants Participant[] @relation("EventParticipants", fields: [uid], references: [eventUid])
+
+  @@map("events")
+}
+
+model Participant {
+  uid             String  @id @default(uuid())
+  eventUid        String  @map("event_uid")
+  name            String  @db.VarChar(255)
+  phone           String  @db.VarChar(16)
+  company         String? @db.VarChar(255)
+  companyPosition String? @map("company_position") @db.VarChar(255)
+  state           String  @unique @map("state_uid")
+  city            String  @unique @map("city_uid")
+  userUid         String  @map("user_uid")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user                       User                        @relation(fields: [userUid], references: [uid])
-  owner                      User?                       @relation(name: "client_owner", fields: [ownerUid], references: [uid])
-  clientProfile              DataClient                  @relation(fields: [dataClientUid], references: [uid])
-  address                    Address?                    @relation(fields: [addressUid], references: [uid])
-  clientFiles                ClientFiles[]
-  scheduledMessageRecipients ScheduledMessageRecipient[]
-  step                       Step?                       @relation(fields: [stepUid], references: [uid])
-  clientTags                 ClientTag[]
+  user  User  @relation(fields: [userUid], references: [uid])
+  event Event @relation("EventParticipants", fields: [eventUid], references: [uid])
 
-  @@map("clients")
+  @@map("participants")
 }
 
-model DataClient {
-  uid         String    @id @default(uuid())
-  name        String?   @db.VarChar(255)
-  email       String?   @db.VarChar(100)
-  phone       String?   @db.VarChar(16)
-  summary     String?   @db.VarChar(255)
-  notes       String?   @db.Text
-  cpf         String?   @map("cpf") @db.VarChar(14)
-  cnpj        String?   @map("cnpj") @db.VarChar(18)
-  fantasyName String?   @map("fantasy_name") @db.VarChar(255)
-  birthDate   DateTime? @map("birth_date")
-  avatar      String?   @db.Text
+model ScoreEvent {
+  uid            String   @id @default(uuid())
+  eventUid       String   @map("event_uid")
+  participantUid String   @map("participant_uid")
+  score          Int
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  event       Event       @relation(fields: [eventUid], references: [uid])
+  participant Participant @relation(fields: [participantUid], references: [uid])
 
-  client Client?
-
-  @@map("data_clients")
-}
-
-model ClientFiles {
-  uid       String   @id @default(uuid())
-  clientUid String   @map("client_uid")
-  fileUid   String   @map("file_uid")
-  name      String   @db.VarChar(255)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  client Client @relation(fields: [clientUid], references: [uid])
-  file   File   @relation(fields: [fileUid], references: [uid])
-
-  @@map("client_files")
-}
-
-model Step {
-  uid         String   @id @default(uuid())
-  name        String   @db.VarChar(255)
-  position    Int
-  userUid     String?  @map("user_uid")
-  type        String   @default("DEFAULT") @db.VarChar(255)
-  stepType    StepType @default(LEAD) @map("step_type")
-  description String?  @db.VarChar(255)
-  enable      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  user    User?    @relation(fields: [userUid], references: [uid])
-  leads   Lead[]
-  clients Client[]
-
-  @@map("steps")
+  @@map("score_events")
 }
 
 model Collaborator {
@@ -472,43 +426,6 @@ model Collaborator {
 
   @@unique([userUid, parentUid])
   @@map("collaborators")
-}
-
-model TempMessage {
-  uid       String   @id @default(uuid())
-  remoteJid String   @map("remote_jid") @db.VarChar(255)
-  fromMe    Boolean
-  userUid   String   @map("user_uid") @db.VarChar(255)
-  id        String   @unique @db.VarChar(255)
-  body      String?  @db.Text
-  type      String?  @db.VarChar(50)
-  timestamp BigInt
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userUid], references: [uid])
-
-  @@map("temp_messages")
-}
-
-model AttendantHistory {
-  uid         String                 @id @default(uuid())
-  remoteJid   String                 @map("remote_jid") @db.VarChar(255)
-  userUid     String                 @map("user_uid") @db.VarChar(255)
-  masterUid   String                 @map("master_uid") @db.VarChar(255)
-  description String?                @db.VarChar(255)
-  note        String?                @db.Text
-  timestamp   BigInt
-  transferTo  String?                @map("transfer_to") @db.VarChar(255)
-  status      AttendantHistoryStatus @default(IN_PROGRESS)
-  createdAt   DateTime               @default(now()) @map("created_at")
-  updatedAt   DateTime               @updatedAt @map("updated_at")
-
-  user           User  @relation(name: "user_attendant", fields: [userUid], references: [uid])
-  master         User  @relation(name: "user_master", fields: [masterUid], references: [uid])
-  userTransfered User? @relation(name: "user_transfered", fields: [transferTo], references: [uid])
-
-  @@map("attendant_histories")
 }
 
 model ScheduledMessage {
@@ -545,7 +462,6 @@ model ScheduledMessageRecipient {
 
   scheduledMessage ScheduledMessage @relation(fields: [scheduledMessageUid], references: [uid])
   lead             Lead?            @relation(fields: [leadUid], references: [uid])
-  client           Client?          @relation(fields: [clientUid], references: [uid])
 
   @@map("scheduled_message_recipients")
 }
@@ -566,6 +482,43 @@ model MessageTemplate {
   scheduledMessages ScheduledMessage[]
 
   @@map("message_templates")
+}
+
+model Tag {
+  uid       String   @id @default(uuid())
+  userUid   String   @map("user_uid")
+  name      String   @db.VarChar(100)
+  color     String   @db.VarChar(7)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userUid], references: [uid])
+  leadTags LeadTag[]
+
+  @@unique([userUid, name])
+  @@map("tags")
+}
+
+model LeadTag {
+  uid     String @id @default(uuid())
+  leadUid String @map("lead_uid")
+  tagUid  String @map("tag_uid")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadUid], references: [uid])
+  tag  Tag  @relation(fields: [tagUid], references: [uid])
+
+  @@unique([leadUid, tagUid])
+  @@map("lead_tags")
+}
+
+enum UserType {
+  ADMIN
+  USER
+  COLLABORATOR
+  PARTICIPANT
 }
 
 enum MessagesStatus {
@@ -594,11 +547,6 @@ enum SubscriptionStatus {
   ACTIVE
   CANCELED
   EXPIRED
-}
-
-enum StepType {
-  LEAD
-  CLIENT
 }
 
 enum FeatureType {
@@ -660,50 +608,4 @@ enum MessageTemplateType {
   AUTHENTICATION
   MARKETING
   UTILITY
-}
-
-model Tag {
-  uid       String   @id @default(uuid())
-  userUid   String   @map("user_uid")
-  name      String   @db.VarChar(100)
-  color     String   @db.VarChar(7)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  user       User        @relation(fields: [userUid], references: [uid])
-  leadTags   LeadTag[]
-  clientTags ClientTag[]
-
-  @@unique([userUid, name])
-  @@map("tags")
-}
-
-model LeadTag {
-  uid     String @id @default(uuid())
-  leadUid String @map("lead_uid")
-  tagUid  String @map("tag_uid")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  lead Lead @relation(fields: [leadUid], references: [uid])
-  tag  Tag  @relation(fields: [tagUid], references: [uid])
-
-  @@unique([leadUid, tagUid])
-  @@map("lead_tags")
-}
-
-model ClientTag {
-  uid       String @id @default(uuid())
-  clientUid String @map("client_uid")
-  tagUid    String @map("tag_uid")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  client Client @relation(fields: [clientUid], references: [uid])
-  tag    Tag    @relation(fields: [tagUid], references: [uid])
-
-  @@unique([clientUid, tagUid])
-  @@map("client_tags")
 }
