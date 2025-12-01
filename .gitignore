@@ -1,0 +1,9 @@
+node_modules
+.build
+.serverless
+.env
+
+undefined
+
+.build/handler.js
+.build/handler.js.map

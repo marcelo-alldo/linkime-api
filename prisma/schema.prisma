@@ -1,0 +1,709 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  uid            String   @id @default(uuid())
+  login          String   @unique @db.VarChar(100)
+  password       String   @db.VarChar(255)
+  tokenFirebase  String?  @map("token_firebase") @db.VarChar(255)
+  enable         Boolean  @default(true)
+  activationCode String?  @map("activation_code") @db.VarChar(255)
+  recoveryCode   String?  @map("recovery_code") @db.VarChar(255)
+  firstLogin     Boolean  @default(false) @map("first_login")
+  confirmed      Boolean  @default(false)
+  type           Int      @default(2)
+  profileUid     String   @unique @map("profile_uid")
+  partnerUid     String?  @map("partner_uid")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  userFeatures             UserFeature[]
+  partner                  Partner?         @relation(fields: [partnerUid], references: [uid])
+  profile                  DataProfile      @relation(fields: [profileUid], references: [uid])
+  userRoles                UserRole[]
+  tickectSupport           TicketSupport[]
+  ticketSupportResponsible TicketSupport[]  @relation("TicketSupportResponsible")
+  payment                  Payment[]
+  userCreditCards          UserCreditCard[]
+
+  subscriptions              UserSubscription[]
+  leads                      Lead[]
+  clients                    Client[]
+  collaborators              Collaborator[]     @relation("CollaboratorUser")
+  parent                     Collaborator[]     @relation("CollaboratorParent")
+  steps                      Step[]
+  configs                    UserConfig[]
+  lead                       Lead[]             @relation("owner")
+  client                     Client[]           @relation("client_owner")
+  tempMessages               TempMessage[]
+  attendantHistory           AttendantHistory[] @relation("user_attendant")
+  attendantHistoryTransfered AttendantHistory[] @relation("user_transfered")
+  masterAttendant            AttendantHistory[] @relation("user_master")
+  scheduledMessages          ScheduledMessage[]
+  messageTemplates           MessageTemplate[]
+  tags                       Tag[]
+
+  @@map("users")
+}
+
+// USER TYPES
+// 1 - ADMIN
+// 2 - USER
+// 3 - COLLABORATOR
+
+model Partner {
+  uid       String   @id @default(uuid())
+  name      String   @db.VarChar(255)
+  key       String   @db.VarChar(255)
+  enable    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("partners")
+}
+
+model UserConfig {
+  uid       String   @id @default(uuid())
+  userUid   String   @map("user_uid")
+  name      String   @db.VarChar(255)
+  key       String   @db.VarChar(255)
+  value     String   @db.Text
+  data      Json?    @db.Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userUid], references: [uid])
+
+  @@map("user_configs")
+}
+
+model Payment {
+  uid                 String        @id @default(uuid())
+  userUid             String        @map("user_uid")
+  alldoPaymentUid     String?       @unique @map("alldo_payment_uid")
+  status              StatusPayment @default(PENDING)
+  type                BillingType
+  value               Decimal       @db.Decimal(10, 2)
+  description         String?       @db.VarChar(255)
+  dueDate             DateTime      @map("due_date")
+  discount            Float?        @db.Float
+  discountType        TypeDiscount? @map("discount_type")
+  codePix             String?       @map("code_pix") @db.VarChar(255)
+  source              TypeSource
+  userSubscriptionUid String?       @map("subscription_uid")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userUid], references: [uid])
+  userSubscription UserSubscription? @relation(fields: [userSubscriptionUid], references: [uid])
+
+  @@map("payments")
+}
+
+model DataProfile {
+  uid         String    @id @default(uuid())
+  name        String?   @db.VarChar(255)
+  email       String?   @unique @db.VarChar(100)
+  phone       String?   @unique @db.VarChar(16)
+  cpf         String?   @map("cpf") @db.VarChar(14)
+  cnpj        String?   @map("cnpj") @db.VarChar(18)
+  fantasyName String?   @map("fantasy_name") @db.VarChar(255)
+  birthDate   DateTime? @map("birth_date")
+  avatar      String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user       User?
+  addressUid String? @unique @map("address_uid")
+
+  address Address? @relation(fields: [addressUid], references: [uid])
+
+  @@map("data_profiles")
+}
+
+model UserCreditCard {
+  uid              String   @id @default(uuid())
+  userUid          String   @map("user_uid")
+  cardName         String?  @map("card_name")
+  creditCardNumber String   @map("credit_card_number")
+  creditCardBrand  String   @map("credit_card_brand")
+  creditCardToken  String   @map("credit_card_token")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userUid], references: [uid])
+
+  @@map("user_credit_cards")
+}
+
+model Role {
+  uid         String   @id @default(uuid())
+  name        String   @db.VarChar(100)
+  type        Int
+  description String   @db.VarChar(150)
+  enable      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  roleFeatures RoleFeature[]
+  userFeatures UserFeature[]
+  userRoles    UserRole[]
+
+  @@map("roles")
+}
+
+model Feature {
+  uid         String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String   @db.VarChar(150)
+  endpoint    String   @db.VarChar(150)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  roleFeatures RoleFeature[]
+  userFeatures UserFeature[]
+
+  @@map("features")
+}
+
+model RoleFeature {
+  uid        String   @id @default(uuid())
+  roleUid    String   @map("role_uid")
+  featureUid String   @map("feature_uid")
+  actions    Json     @db.Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  feature Feature @relation(fields: [featureUid], references: [uid])
+  role    Role    @relation(fields: [roleUid], references: [uid])
+
+  @@map("role_features")
+}
+
+model UserFeature {
+  uid        String   @id @default(uuid())
+  roleUid    String   @map("role_uid")
+  userUid    String   @map("user_uid")
+  featureUid String   @map("feature_uid")
+  actions    Json     @db.Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  feature Feature @relation(fields: [featureUid], references: [uid])
+  role    Role    @relation(fields: [roleUid], references: [uid])
+  user    User    @relation(fields: [userUid], references: [uid])
+
+  @@map("user_features")
+}
+
+model Address {
+  uid          String   @id @default(uuid())
+  address      String   @db.VarChar(255)
+  number       String   @db.VarChar(255)
+  complement   String?  @db.VarChar(255)
+  neighborhood String   @db.VarChar(255)
+  zipCode      String   @db.VarChar(9)
+  latitude     String   @db.VarChar(255)
+  longitude    String   @db.VarChar(255)
+  point        String   @db.VarChar(255)
+  cityUid      String   @map("city_uid")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  city    City         @relation(fields: [cityUid], references: [uid])
+  profile DataProfile?
+  client  Client?
+
+  @@map("addresses")
+}
+
+model City {
+  uid       String   @id @default(uuid())
+  name      String   @db.VarChar(255)
+  codeIbge  Int      @unique @map("code_ibge")
+  stateUid  String   @map("state_uid")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  state   State     @relation(fields: [stateUid], references: [uid])
+  address Address[]
+
+  @@map("cities")
+}
+
+model State {
+  uid        String   @id @default(uuid())
+  name       String   @db.VarChar(255)
+  codeIbge   Int      @unique @map("code_ibge")
+  countryUid String   @map("country_uid")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  country Country @relation(fields: [countryUid], references: [uid])
+  city    City[]
+
+  @@map("states")
+}
+
+model Country {
+  uid       String   @id @default(uuid())
+  name      String   @db.VarChar(255)
+  initials  String   @db.VarChar(255)
+  m49       String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  states State[]
+
+  @@map("countries")
+}
+
+model File {
+  uid         String        @id @default(uuid())
+  key         String        @db.Text
+  publicUrl   String?       @map("public_url") @db.Text
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  clientFiles ClientFiles[]
+
+  @@map("files")
+}
+
+model TicketSupport {
+  uid                String              @id @default(uuid())
+  description        String              @db.VarChar(255)
+  status             StatusTicketSupport @default(NOT_STARTED)
+  solution           String?             @db.VarChar(255)
+  userUid            String              @map("user_uid")
+  userResponsibleUid String?             @map("user_responsible_uid")
+  productUid         String              @map("product_uid")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  user                  User  @relation(fields: [userUid], references: [uid])
+  userTicketResponsible User? @relation(fields: [userResponsibleUid], references: [uid], name: "TicketSupportResponsible")
+
+  @@map("ticket_supportes")
+}
+
+model UserRole {
+  uid     String @id @default(uuid())
+  userUid String @map("user_uid")
+  roleUid String @map("role_uid")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userUid], references: [uid])
+  role Role @relation(fields: [roleUid], references: [uid])
+
+  @@map("user_roles")
+}
+
+model Subscription {
+  uid              String             @id @default(uuid())
+  name             String             @db.VarChar(255)
+  description      String             @db.VarChar(255)
+  price            Decimal            @db.Decimal(10, 2)
+  enable           Boolean            @default(true)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  userSubscription UserSubscription[]
+
+  @@map("subscriptions")
+}
+
+model UserSubscription {
+  uid             String               @id @default(uuid())
+  userUid         String               @map("user_uid")
+  subscriptionUid String               @map("subscription_uid")
+  type            UserSubscriptionType @default(MONTHLY)
+  status          SubscriptionStatus   @default(PAYMENT_PENDING)
+  startDate       DateTime             @map("start_date")
+  endDate         DateTime             @map("end_date")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userUid], references: [uid])
+  subscription Subscription @relation(fields: [subscriptionUid], references: [uid])
+  payments     Payment[]
+
+  @@map("user_subscriptions")
+}
+
+model Lead {
+  uid            String    @id @default(uuid())
+  userUid        String    @map("user_uid")
+  position       Int
+  archived       Boolean   @default(false)
+  name           String    @db.VarChar(255)
+  email          String?   @db.VarChar(100)
+  summary        String?   @db.Text
+  ownerUid       String?   @map("owner_uid")
+  notes          String?   @db.Text
+  phone          String    @db.VarChar(16)
+  conversation   String?   @default("working") @db.VarChar(12)
+  ieRg           String?   @map("ie_rg") @db.VarChar(50)
+  cpf            String?   @map("cpf") @db.VarChar(14)
+  cnpj           String?   @map("cnpj") @db.VarChar(18)
+  fantasyName    String?   @map("fantasy_name") @db.VarChar(255)
+  stepUid        String?   @db.VarChar(255)
+  birthDate      DateTime? @map("birth_date")
+  iaConversation Boolean   @default(true) @map("ia_conversation")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user                       User                        @relation(fields: [userUid], references: [uid])
+  step                       Step?                       @relation(fields: [stepUid], references: [uid])
+  owner                      User?                       @relation(name: "owner", fields: [ownerUid], references: [uid])
+  scheduledMessageRecipients ScheduledMessageRecipient[]
+  leadTags                   LeadTag[]
+
+  @@map("leads")
+}
+
+model Client {
+  uid            String  @id @default(uuid())
+  userUid        String  @map("user_uid")
+  enable         Boolean @default(true)
+  archived       Boolean @default(false)
+  dataClientUid  String  @unique @map("data_client_uid")
+  addressUid     String? @unique @map("address_uid")
+  ownerUid       String? @map("owner_uid")
+  stepUid        String  @map("step_uid")
+  position       Int
+  iaConversation Boolean @default(true) @map("ia_conversation")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user                       User                        @relation(fields: [userUid], references: [uid])
+  owner                      User?                       @relation(name: "client_owner", fields: [ownerUid], references: [uid])
+  clientProfile              DataClient                  @relation(fields: [dataClientUid], references: [uid])
+  address                    Address?                    @relation(fields: [addressUid], references: [uid])
+  clientFiles                ClientFiles[]
+  scheduledMessageRecipients ScheduledMessageRecipient[]
+  step                       Step?                       @relation(fields: [stepUid], references: [uid])
+  clientTags                 ClientTag[]
+
+  @@map("clients")
+}
+
+model DataClient {
+  uid         String    @id @default(uuid())
+  name        String?   @db.VarChar(255)
+  email       String?   @db.VarChar(100)
+  phone       String?   @db.VarChar(16)
+  summary     String?   @db.VarChar(255)
+  notes       String?   @db.Text
+  cpf         String?   @map("cpf") @db.VarChar(14)
+  cnpj        String?   @map("cnpj") @db.VarChar(18)
+  fantasyName String?   @map("fantasy_name") @db.VarChar(255)
+  birthDate   DateTime? @map("birth_date")
+  avatar      String?   @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client Client?
+
+  @@map("data_clients")
+}
+
+model ClientFiles {
+  uid       String   @id @default(uuid())
+  clientUid String   @map("client_uid")
+  fileUid   String   @map("file_uid")
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client Client @relation(fields: [clientUid], references: [uid])
+  file   File   @relation(fields: [fileUid], references: [uid])
+
+  @@map("client_files")
+}
+
+model Step {
+  uid         String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  position    Int
+  userUid     String?  @map("user_uid")
+  type        String   @default("DEFAULT") @db.VarChar(255)
+  stepType    StepType @default(LEAD) @map("step_type")
+  description String?  @db.VarChar(255)
+  enable      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user    User?    @relation(fields: [userUid], references: [uid])
+  leads   Lead[]
+  clients Client[]
+
+  @@map("steps")
+}
+
+model Collaborator {
+  uid       String   @id @default(uuid())
+  userUid   String   @map("user_uid")
+  parentUid String   @map("parent_uid")
+  enable    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User @relation("CollaboratorUser", fields: [userUid], references: [uid])
+  parent User @relation("CollaboratorParent", fields: [parentUid], references: [uid])
+
+  @@unique([userUid, parentUid])
+  @@map("collaborators")
+}
+
+model TempMessage {
+  uid       String   @id @default(uuid())
+  remoteJid String   @map("remote_jid") @db.VarChar(255)
+  fromMe    Boolean
+  userUid   String   @map("user_uid") @db.VarChar(255)
+  id        String   @unique @db.VarChar(255)
+  body      String?  @db.Text
+  type      String?  @db.VarChar(50)
+  timestamp BigInt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userUid], references: [uid])
+
+  @@map("temp_messages")
+}
+
+model AttendantHistory {
+  uid         String                 @id @default(uuid())
+  remoteJid   String                 @map("remote_jid") @db.VarChar(255)
+  userUid     String                 @map("user_uid") @db.VarChar(255)
+  masterUid   String                 @map("master_uid") @db.VarChar(255)
+  description String?                @db.VarChar(255)
+  note        String?                @db.Text
+  timestamp   BigInt
+  transferTo  String?                @map("transfer_to") @db.VarChar(255)
+  status      AttendantHistoryStatus @default(IN_PROGRESS)
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  user           User  @relation(name: "user_attendant", fields: [userUid], references: [uid])
+  master         User  @relation(name: "user_master", fields: [masterUid], references: [uid])
+  userTransfered User? @relation(name: "user_transfered", fields: [transferTo], references: [uid])
+
+  @@map("attendant_histories")
+}
+
+model ScheduledMessage {
+  uid                String         @id @default(uuid())
+  userUid            String         @map("user_uid") @db.VarChar(255)
+  instance           String         @map("instance") @db.VarChar(255)
+  title              String         @db.VarChar(255)
+  message            String         @db.Text
+  messageTemplateUid String?        @map("message_template_uid") @db.VarChar(255)
+  enable             Boolean        @default(true)
+  sendAt             DateTime       @map("send_at")
+  status             MessagesStatus @default(PENDING)
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  user            User                        @relation(fields: [userUid], references: [uid])
+  messageTemplate MessageTemplate?            @relation(fields: [messageTemplateUid], references: [uid])
+  recipients      ScheduledMessageRecipient[]
+
+  @@map("scheduled_messages")
+}
+
+model ScheduledMessageRecipient {
+  uid                 String         @id @default(uuid())
+  scheduledMessageUid String         @map("scheduled_message_uid") @db.VarChar(255)
+  remoteJid           String         @map("remote_jid") @db.VarChar(255)
+  name                String?        @db.VarChar(255)
+  leadUid             String?        @map("lead_uid") @db.VarChar(255)
+  clientUid           String?        @map("client_uid") @db.VarChar(255)
+  whatsappId          String?        @map("whatsapp_id") @db.VarChar(255)
+  status              MessagesStatus @default(PENDING)
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  scheduledMessage ScheduledMessage @relation(fields: [scheduledMessageUid], references: [uid])
+  lead             Lead?            @relation(fields: [leadUid], references: [uid])
+  client           Client?          @relation(fields: [clientUid], references: [uid])
+
+  @@map("scheduled_message_recipients")
+}
+
+model MessageTemplate {
+  uid            String                @id @default(uuid())
+  userUid        String                @map("user_uid") @db.VarChar(255)
+  name           String                @db.VarChar(512)
+  message        String                @db.Text
+  category       MessageTemplateType   @default(UTILITY)
+  status         MessageTemplateStatus @default(PENDING)
+  enable         Boolean               @default(true)
+  metaTemplateId String?               @unique @map("meta_template_id") @db.VarChar(255)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  user              User               @relation(fields: [userUid], references: [uid])
+  scheduledMessages ScheduledMessage[]
+
+  @@map("message_templates")
+}
+
+enum MessagesStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  PENDING
+}
+
+enum UserSubscriptionType {
+  YEARLY
+  MONTHLY
+}
+
+enum AttendantHistoryStatus {
+  IN_PROGRESS
+  TRANSFERRED
+  FINALIZED
+  CONVERTED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  PAYMENT_PENDING
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
+enum StepType {
+  LEAD
+  CLIENT
+}
+
+enum FeatureType {
+  DEBIT
+  CREDIT
+}
+
+enum StatusTicketSupport {
+  FINALIZED
+  IN_PROGRESS
+  NOT_STARTED
+}
+
+enum StatusPayment {
+  PENDING
+  RECEIVED
+  CANCELED
+  CONFIRMED
+  OVERDUE
+  REFUNDED
+  REFUSED
+  RECEIVED_IN_CASH
+  REFUND_REQUESTED
+  REFUND_IN_PROGRESS
+  CHARGEBACK_REQUESTED
+  CHARGEBACK_DISPUTE
+  AWAITING_CHARGEBACK_REVERSAL
+  DUNNING_REQUESTED
+  DUNNING_RECEIVED
+  AWAITING_RISK_ANALYSIS
+}
+
+enum BillingType {
+  BOLETO
+  CREDIT_CARD
+  DEBIT_CARD
+  TRANSFER
+  DEPOSIT
+  PIX
+}
+
+enum TypeDiscount {
+  PERCENTAGE
+  VALUE
+}
+
+enum TypeSource {
+  ASAAS
+  IZIPAY
+}
+
+enum MessageTemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MessageTemplateType {
+  AUTHENTICATION
+  MARKETING
+  UTILITY
+}
+
+model Tag {
+  uid       String   @id @default(uuid())
+  userUid   String   @map("user_uid")
+  name      String   @db.VarChar(100)
+  color     String   @db.VarChar(7)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userUid], references: [uid])
+  leadTags   LeadTag[]
+  clientTags ClientTag[]
+
+  @@unique([userUid, name])
+  @@map("tags")
+}
+
+model LeadTag {
+  uid     String @id @default(uuid())
+  leadUid String @map("lead_uid")
+  tagUid  String @map("tag_uid")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadUid], references: [uid])
+  tag  Tag  @relation(fields: [tagUid], references: [uid])
+
+  @@unique([leadUid, tagUid])
+  @@map("lead_tags")
+}
+
+model ClientTag {
+  uid       String @id @default(uuid())
+  clientUid String @map("client_uid")
+  tagUid    String @map("tag_uid")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client Client @relation(fields: [clientUid], references: [uid])
+  tag    Tag    @relation(fields: [tagUid], references: [uid])
+
+  @@unique([clientUid, tagUid])
+  @@map("client_tags")
+}

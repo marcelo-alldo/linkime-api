@@ -1,0 +1,44 @@
+{
+  "scripts": {
+    "dev": "sls offline",
+    "build:dev": "prisma generate && serverless deploy --stage dev",
+    "build:prod": "prisma generate && serverless deploy --stage prod",
+    "prisma:generate": "prisma generate"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^22.10.1",
+    "@types/nodemailer": "^6.4.17",
+    "@types/qrcode": "^1.5.5",
+    "esbuild": "^0.24.0",
+    "prisma": "^5.20.0",
+    "serverless-offline": "^14.3.4",
+    "serverless-prune-plugin": "^2.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@prisma/client": "^5.20.0",
+    "aws-sdk": "^2.1692.0",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "firebase-admin": "^13.4.0",
+    "form-data": "^4.0.0",
+    "handlebars": "^4.7.8",
+    "jsonwebtoken": "^9.0.2",
+    "mime-types": "^2.1.35",
+    "mock-aws-s3": "^4.0.2",
+    "nodemailer": "^6.9.16",
+    "qrcode": "^1.5.4",
+    "serverless": "^4.17.1",
+    "xlsx": "^0.18.5"
+  }
+}
